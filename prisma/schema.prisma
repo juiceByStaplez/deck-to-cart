@@ -1,0 +1,18 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Card {
+  id        Int      @id @default(autoincrement())
+  cardId    String
+  name      String
+  setName String
+  productId Int @unique
+  setId String
+  createdAt DateTime @default(now())
+}

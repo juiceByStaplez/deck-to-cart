@@ -23,7 +23,7 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen p-4 bg-gray-100">
+    <main className="min-h-screen p-4 bg-gray-500">
       <h1 className="text-2xl font-bold mb-4">
         One Piece TCG → TCGPlayer Link
       </h1>
@@ -42,15 +42,15 @@ export default function Home() {
       </button>
 
       {link && (
-        <div className="mt-4">
+        <div className="mt-4 flex flex-col">
           <p className="font-semibold">TCGPlayer Link:</p>
           <a
             href={link}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 underline"
+            className="text-white-100 rounded bg-blue-500 p-4 mt-2 w-30 text-center"
           >
-            {link}
+            Click Here
           </a>
         </div>
       )}

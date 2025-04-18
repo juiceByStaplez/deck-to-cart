@@ -1,31 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import axios from "axios";
+import { prisma } from "@/lib/prisma";
 
-const CLIENT_ID = process.env.TCGPLAYER_CLIENT_ID || "";
-const CLIENT_SECRET = process.env.TCGPLAYER_CLIENT_SECRET || "";
+async function getProductId(cardId: string): Promise<string | null> {
+  const card = await prisma.card.findFirst({
+    where: {
+      cardId,
+    },
+  });
 
-async function getAccessToken() {
-  const params = new URLSearchParams();
-  params.append("grant_type", "client_credentials");
-  params.append("client_id", CLIENT_ID);
-  params.append("client_secret", CLIENT_SECRET);
+  const productIdAsString = card?.productId.toString() || null;
 
-  const res = await axios.post("https://api.tcgplayer.com/token", params);
-  return res.data.access_token;
-}
-
-async function getProductId(cardCode: string, token: string) {
-  const { data } = await axios.get(
-    "https://api.tcgplayer.com/catalog/products",
-    {
-      headers: { Authorization: `bearer ${token}` },
-      params: {
-        productLineName: "One Piece Card Game",
-        productName: cardCode,
-      },
-    }
-  );
-  return data.results?.[0]?.productId || null;
+  return productIdAsString;
 }
 
 export async function POST(req: NextRequest) {
@@ -37,7 +22,6 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const token = await getAccessToken();
     const lines = deckString.trim().split("\n");
 
     const parts = [];
@@ -47,7 +31,7 @@ export async function POST(req: NextRequest) {
 
       const qty = match[1];
       const code = match[2];
-      const productId = await getProductId(code, token);
+      const productId = await getProductId(code);
 
       if (productId) {
         parts.push(`${qty}-${productId}`);
