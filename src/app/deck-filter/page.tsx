@@ -62,7 +62,6 @@ export default function DeckFilterPage() {
       .then((res) => res.json())
       .then(setDecks);
   }, []);
-
   const runSearch = (value: string) => {
     const lowerValue = value.toLowerCase();
 
@@ -72,9 +71,8 @@ export default function DeckFilterPage() {
     });
 
     const boosted = results.map((result) => {
-      const { name, cardId } = result.obj;
+      const { name } = result.obj;
       const nameLower = name.toLowerCase();
-      const cardIdLower = cardId.toLowerCase();
 
       let priority = 2; // default
 
