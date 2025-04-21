@@ -33,9 +33,30 @@ export default function DeckFilterPage() {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    fetch("/api/cards")
-      .then((res) => res.json())
-      .then(setCards);
+    const cached = localStorage.getItem("cards-cache");
+    const cachedAt = localStorage.getItem("cards-cache-timestamp");
+
+    if (cached && cachedAt) {
+      const age = Date.now() - parseInt(cachedAt, 10);
+      const oneDay = 1000 * 60 * 60 * 24;
+
+      if (age < oneDay) {
+        setCards(JSON.parse(cached));
+      } else {
+        localStorage.removeItem("cards-cache");
+        localStorage.removeItem("cards-cache-timestamp");
+      }
+    }
+
+    if (!cached || !cachedAt) {
+      fetch("/api/cards")
+        .then((res) => res.json())
+        .then((data) => {
+          setCards(data);
+          localStorage.setItem("cards-cache", JSON.stringify(data));
+          localStorage.setItem("cards-cache-timestamp", Date.now().toString());
+        });
+    }
 
     fetch("/data/gumgum_decks.json")
       .then((res) => res.json())
@@ -43,12 +64,37 @@ export default function DeckFilterPage() {
   }, []);
 
   const runSearch = (value: string) => {
+    const lowerValue = value.toLowerCase();
+
     const results = fuzzysort.go(value, cards, {
       keys: ["name", "cardId"],
-      threshold: -10000,
-      limit: 10,
+      threshold: -20,
     });
-    setFilteredCards(results.map((result) => result.obj));
+
+    const boosted = results.map((result) => {
+      const { name, cardId } = result.obj;
+      const nameLower = name.toLowerCase();
+      const cardIdLower = cardId.toLowerCase();
+
+      let priority = 2; // default
+
+      if (nameLower === lowerValue) {
+        priority = 0; // exact name match
+      } else if (nameLower.startsWith(lowerValue)) {
+        priority = 1; // name prefix match
+      }
+
+      return { ...result, priority };
+    });
+
+    const sorted = boosted
+      .sort((a, b) => {
+        if (a.priority !== b.priority) return a.priority - b.priority;
+        return a.score - b.score;
+      })
+      .map((r) => r.obj);
+
+    setFilteredCards(sorted);
     setHighlightedIndex(-1);
   };
 
@@ -97,10 +143,8 @@ export default function DeckFilterPage() {
   }, [selectedCard, decks]);
 
   return (
-    <div className="p-4 max-w-screen-md mx-auto w-full">
-      <h1 className="text-xl font-bold mb-4 text-center sm:text-left">
-        Deck Filter
-      </h1>
+    <div className="p-4">
+      <h1 className="text-xl font-bold mb-4">Deck Filter</h1>
       <input
         ref={inputRef}
         type="text"
@@ -108,15 +152,15 @@ export default function DeckFilterPage() {
         value={search}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
-        className="border p-2 w-full mb-2 rounded"
+        className="border p-2 w-full mb-2"
       />
 
       {filteredCards.length > 0 && (
-        <ul className="border rounded p-2 mb-4 divide-y">
+        <ul className="border rounded p-2 mb-4 max-h-60 overflow-y-auto">
           {filteredCards.map((card, index) => (
             <li
               key={card.id}
-              className={`cursor-pointer p-2 text-indigo-900 ${
+              className={`cursor-pointer p-1 text-indigo-900 ${
                 index === highlightedIndex
                   ? "bg-indigo-100"
                   : "hover:bg-indigo-50"
@@ -130,24 +174,21 @@ export default function DeckFilterPage() {
       )}
 
       {selectedCard && (
-        <div className="mt-4">
-          <h2 className="text-lg font-semibold mb-2 text-center sm:text-left">
+        <div>
+          <h2 className="text-lg font-semibold mb-2">
             Decks containing: {selectedCard.name} ({selectedCard.cardId}) —{" "}
             {deckCount} deck{deckCount !== 1 && "s"}
           </h2>
           <ul className="list-disc pl-5 space-y-2">
             {filteredDecks.map((deck, i) => (
-              <li
-                key={i}
-                className="flex flex-col sm:flex-row sm:items-center sm:gap-2"
-              >
-                <span>{deck.title}</span>
+              <li key={i}>
+                {deck.title}
                 {deck.url && (
                   <a
                     href={deck.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline"
+                    className="ml-2 text-sm text-blue-600 hover:underline"
                   >
                     (View Full Decklist)
                   </a>
